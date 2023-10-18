@@ -58,6 +58,7 @@ func main() {
 	var enableWebhook bool
 	var probeAddr string
 	var enableHTTP2 bool
+	var secureMetrics bool
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":39201", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableWebhook, "enable-webhook", false, "Enable deployment of webhook to validate CR IngressNodeFirewall")
@@ -65,6 +66,8 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the metrics and webhook servers.")
+	flag.BoolVar(&secureMetrics, "metrics-secure", secureMetrics, "If the metrics endpoint should be served securely.")
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -97,10 +100,15 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:  scheme,
-		Metrics: metricsserver.Options{BindAddress: metricsAddr},
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress:   metricsAddr,
+			SecureServing: secureMetrics,
+			TLSOpts:       []func(*tls.Config){disableHTTP2},
+		},
 		WebhookServer: webhookctrl.NewServer(webhookctrl.Options{
-			Port: 9443,
+			Port:    9443,
+			TLSOpts: []func(config *tls.Config){disableHTTP2},
 		}),
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
