@@ -253,7 +253,7 @@ spec:
                 - /manager
                 env:
                 - name: DAEMONSET_IMAGE
-                  value: quay.io/openshift/origin-ingress-node-firewall-daemon:latest
+                  value: localhost/ingress-node-firewall-daemon:local
                 - name: DAEMONSET_NAMESPACE
                   valueFrom:
                     fieldRef:
