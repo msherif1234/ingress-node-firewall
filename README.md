@@ -272,7 +272,7 @@ kubectl exec -n ${OPERATOR_NAMESPACE} -it ${NODE_DAEMON_NAME} sh
 ```
 2. Retrieve the Prometheus formatted metrics
 ```sh
-Curl 127.0.0.1:39301/metrics
+Curl 127.0.0.1:39401/metrics
 ```
 
 Within OCP, you may use the OCP console to access the promql console to search for the following metrics:
