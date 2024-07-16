@@ -41,18 +41,8 @@ spec:
               value: '{{.Debug}}'
             - name: EBPF_MANAGEMENT_MODE
               value: '{{.Mode}}'
-          securityContext:
-            privileged: true
-            runAsUser: 0
-            capabilities:
-              add:
-                - CAP_BPF
-                - CAP_NET_ADMIN
           terminationMessagePolicy: FallbackToLogsOnError
           volumeMounts:
-            - name: bpf-maps
-              mountPath: /sys/fs/bpf
-              mountPropagation: Bidirectional
             - name: syslog-socket
               mountPath: /var/run
         - name: events
@@ -114,10 +104,6 @@ spec:
               mountPath: /etc/pki/tls/metrics-certs
               readOnly: True
       volumes:
-        - name: bpf-maps
-          hostPath:
-            path: /sys/fs/bpf
-            type: DirectoryOrCreate
         # Must be optional because the ingress-node-firewall-daemon-metrics-certs is a service serving
         # certificate and those cannot be generated without the daemon running
         - name: ingress-node-firewall-daemon-metrics-certs

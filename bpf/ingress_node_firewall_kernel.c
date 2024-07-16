@@ -551,9 +551,8 @@ int xdp_ingress_node_firewall_process(struct xdp_md *ctx) {
   return xdp_ingress_node_firewall_main(ctx);
 }
 
-SEC("tcx_ingress_node_fw")
+SEC("classifier/tcx_ingress_node_fw")
 int tcx_ingress_node_firewall_process(struct __sk_buff *skb) {
   return tcx_ingress_node_firewall_main(skb);
 }
-
 char __license[] SEC("license") = "Dual BSD/GPL";

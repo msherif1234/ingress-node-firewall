@@ -11,14 +11,12 @@ import (
 
 	"github.com/openshift/ingress-node-firewall/api/v1alpha1"
 	infv1alpha1 "github.com/openshift/ingress-node-firewall/api/v1alpha1"
-	bpf_mgr "github.com/openshift/ingress-node-firewall/pkg/bpf-mgr"
 	nodefwloader "github.com/openshift/ingress-node-firewall/pkg/ebpf"
 	intfs "github.com/openshift/ingress-node-firewall/pkg/interfaces"
 	"github.com/openshift/ingress-node-firewall/pkg/metrics"
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -40,7 +38,7 @@ type EbpfSyncer interface {
 // it sets up a new one.
 // It will do so only once.
 // Then, it returns the instance.
-func GetEbpfSyncer(ctx context.Context, log logr.Logger, stats *metrics.Statistics, client client.Client, mock EbpfSyncer) EbpfSyncer {
+func GetEbpfSyncer(ctx context.Context, log logr.Logger, stats *metrics.Statistics, mock EbpfSyncer) EbpfSyncer {
 	once.Do(func() {
 		// Check if instance is nil. For mock tests, one can provide a custom instance.
 		if mock == nil {
@@ -48,7 +46,6 @@ func GetEbpfSyncer(ctx context.Context, log logr.Logger, stats *metrics.Statisti
 				ctx:               ctx,
 				log:               log,
 				stats:             stats,
-				client:            client,
 				managedInterfaces: make(map[string]struct{}),
 			}
 		} else {
@@ -63,7 +60,6 @@ type ebpfSingleton struct {
 	ctx               context.Context
 	log               logr.Logger
 	stats             *metrics.Statistics
-	client            client.Client
 	c                 *nodefwloader.IngNodeFwController
 	managedInterfaces map[string]struct{}
 	mu                sync.Mutex
@@ -165,9 +161,12 @@ func (e *ebpfSingleton) loadIngressNodeFirewallRules(
 // resetAll deletes all current attachments and cleans all eBPFObjects. It then sets the ingress firewall manager
 // back to nil. It also deletes all pins and removes all XDP attachments for all system interfaces.
 func (e *ebpfSingleton) resetAll() error {
+	var err error
 	e.log.Info("Running detach operation of managed interfaces")
 	for intf := range e.managedInterfaces {
-		err := e.c.IngressNodeFwDetach(intf)
+		if !e.c.Mode {
+			err = e.c.IngressNodeFwDetach(intf)
+		}
 		if err != nil {
 			e.log.Info("Could not detach managed interface", "intf", intf, "err", err)
 		}
@@ -206,10 +205,7 @@ func (e *ebpfSingleton) attachNewInterfaces(ifaceIngressRules map[string][]v1alp
 				func() error {
 					var err error
 					e.log.Info("Attaching firewall interface", "intf", intf)
-					if e.c.Mode {
-						// create bpfman app object and attach ingress firewall prog
-						err = bpf_mgr.BpfmanAttachNodeFirewall(e.ctx, e.client, intf)
-					} else {
+					if !e.c.Mode {
 						err = e.c.IngressNodeFwAttach(intf)
 					}
 					if err != nil {
@@ -237,10 +233,7 @@ func (e *ebpfSingleton) detachUnmanagedInterfaces(ifaceIngressRules map[string][
 	for intf := range e.managedInterfaces {
 		if _, ok := ifaceIngressRules[intf]; !ok {
 			e.log.Info("Running detach operation for interface", "intf", intf)
-			if e.c.Mode {
-				// delete bpfman app object and detach ingress firewall prog
-				err = bpf_mgr.BpfmanDetachNodeFirewall(e.ctx, e.client, intf)
-			} else {
+			if !e.c.Mode {
 				err = e.c.IngressNodeFwDetach(intf)
 			}
 			if err != nil {
