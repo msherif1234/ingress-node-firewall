@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set default value for IMAGE_INFW_BC tag if not already set
-IMAGE_INFW_BC=${IMAGE_INFW_BC:-quay.io/bpfman-bytecode/ingress-node-firewall}
+IMAGE_INFW_BC=${IMAGE_INFW_BC:-quay.io/bpfman-bytecode/ingress-node-firewall-multi}
 
 # PROGRAMS is a list of <program name>:<program type> tuples
 PROGRAMS="{\
@@ -17,10 +17,14 @@ MAPS="{\
 \"ingress_node_firewall_table_map\":\"lpm_trie\"\
 }"
 
-docker build \
+docker buildx build \
+ --platform linux/amd64,linux/arm64,linux/s390x,linux/ppc64le \
  --build-arg PROGRAMS="$PROGRAMS" \
  --build-arg MAPS="$MAPS" \
- --build-arg BYTECODE_FILE=bpf_x86_bpfel.o \
- -f ./Containerfile.bytecode \
+ --build-arg BC_AMD64_EL=bpf_x86_bpfel.o \
+ --build-arg BC_ARM64_EL=bpf_arm64_bpfel.o \
+ --build-arg BC_S390X_EB=bpf_s390_bpfeb.o \
+ --build-arg BC_PPC64LE_EL=bpf_powerpc_bpfel.o \
+ -f ./Containerfile.bytecode.multi.arch \
  --push \
  ./pkg/ebpf -t $IMAGE_INFW_BC
